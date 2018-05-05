@@ -1,0 +1,8 @@
+@@ -96,6 +96,7 @@
+   void always_strong_classes_do(KlassClosure* closure);
+ 
+   void classes_do(void f(Klass*));
++  void classes_do(KlassClosure* closure);
+   void classes_do(void f(Klass*, TRAPS), TRAPS);
+   void classes_do(void f(Klass*, ClassLoaderData*));
+ 

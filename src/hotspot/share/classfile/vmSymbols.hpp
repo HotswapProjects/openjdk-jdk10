@@ -281,6 +281,8 @@
   template(java_lang_invoke_CallSite,                 "java/lang/invoke/CallSite")                \
   template(java_lang_invoke_ConstantCallSite,         "java/lang/invoke/ConstantCallSite")        \
   template(java_lang_invoke_DirectMethodHandle,       "java/lang/invoke/DirectMethodHandle")      \
+  template(java_lang_invoke_DirectMethodHandle_StaticAccessor, "java/lang/invoke/DirectMethodHandle$StaticAccessor") \
+  template(java_lang_invoke_DirectMethodHandle_Accessor, "java/lang/invoke/DirectMethodHandle$Accessor") \
   template(java_lang_invoke_MutableCallSite,          "java/lang/invoke/MutableCallSite")         \
   template(java_lang_invoke_VolatileCallSite,         "java/lang/invoke/VolatileCallSite")        \
   template(java_lang_invoke_MethodHandle,             "java/lang/invoke/MethodHandle")            \

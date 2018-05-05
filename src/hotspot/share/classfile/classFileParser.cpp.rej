@@ -1,0 +1,35 @@
+@@ -842,7 +842,7 @@
+         "Interface name has bad constant pool index %u in class file %s",
+         interface_index, CHECK);
+       if (cp->tag_at(interface_index).is_klass()) {
+-        interf = KlassHandle(THREAD, cp->resolved_klass_at(interface_index));
++        interf = KlassHandle(THREAD, maybe_newest(cp->resolved_klass_at(interface_index)));
+       } else {
+         Symbol* const unresolved_klass  = cp->klass_name_at(interface_index);
+ 
+@@ -859,7 +859,7 @@
+                                                   _protection_domain,
+                                                   false,
+                                                   CHECK);
+-        interf = KlassHandle(THREAD, k);
++        interf = KlassHandle(THREAD, maybe_newest(k));
+       }
+ 
+       if (!interf()->is_interface()) {
+@@ -5983,13 +5988,15 @@
+         "Interfaces must have java.lang.Object as superclass in class file %s",
+         CHECK);
+     }
+-    _super_klass = (const InstanceKlass*)
++
++    const Klass* super_klass =
+                        SystemDictionary::resolve_super_or_fail(_class_name,
+                                                                super_class_name,
+                                                                _loader_data->class_loader(),
+                                                                _protection_domain,
+                                                                true,
+                                                                CHECK);
++      _super_klass = (const InstanceKlass*) maybe_newest(super_klass);
+   }
+ 
+   if (_super_klass != NULL) {

@@ -97,6 +97,7 @@ InstanceKlass* KlassFactory::check_shared_class_file_load_hook(
                              NULL,
                              NULL,
                              ClassFileParser::BROADCAST, // publicity level
+                             false,
                              CHECK_NULL);
       InstanceKlass* new_ik = parser.create_instance_klass(true /* changed_by_loadhook */,
                                                            CHECK_NULL);
@@ -209,6 +210,7 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                          host_klass,
                          cp_patches,
                          ClassFileParser::BROADCAST, // publicity level
+                         pick_newest,
                          CHECK_NULL);
 
   InstanceKlass* result = parser.create_instance_klass(old_stream != stream, CHECK_NULL);

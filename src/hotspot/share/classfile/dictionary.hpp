@@ -209,6 +209,15 @@ class DictionaryEntry : public HashtableEntry<InstanceKlass*, mtClass> {
   }
 
   void verify();
+
+  // Enhanced class redefinition
+  bool update_klass(int index, unsigned int hash, Symbol* name, ClassLoaderData* loader_data, KlassHandle k, KlassHandle old_klass);
+
+  void rollback_redefinition();
+
+  static Klass* old_if_redefined(Klass* k) {
+    return (k != NULL && k->is_redefining()) ? k->old_version() : k;
+  }
 };
 
 // Entry in a SymbolPropertyTable, mapping a single Symbol*

@@ -203,6 +203,7 @@ Klass* SystemDictionary::resolve_or_fail(Symbol* class_name, Handle class_loader
     // can return a null klass
     klass = handle_resolution_exception(class_name, throw_error, klass, THREAD);
   }
+  assert(klass == NULL || klass->new_version() == NULL || klass->newest_version()->is_redefining(), "must be");
   return klass;
 }
 
@@ -1157,7 +1158,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
       k = defined_k;
     }
   } else {
-    define_instance_class(k, THREAD);
+    define_instance_class(k, old_klass, THREAD);
   }
 
   // If defining the class throws an exception register 'k' for cleanup.
@@ -1673,7 +1674,7 @@ void SystemDictionary::define_instance_class(InstanceKlass* k, TRAPS) {
   k->eager_initialize(THREAD);
 
   // notify jvmti
-  if (JvmtiExport::should_post_class_load()) {
+  if (!is_redefining && JvmtiExport::should_post_class_load()) {
       assert(THREAD->is_Java_thread(), "thread->is_Java_thread()");
       JvmtiExport::post_class_load((JavaThread *) THREAD, k);
 
@@ -1751,7 +1752,7 @@ InstanceKlass* SystemDictionary::find_or_define_instance_class(Symbol* class_nam
     }
   }
 
-  define_instance_class(k, THREAD);
+  define_instance_class(k, instanceKlassHandle(), THREAD);
 
   Handle linkage_exception = Handle(); // null handle
 
@@ -1872,6 +1873,22 @@ void SystemDictionary::add_to_hierarchy(InstanceKlass* k, TRAPS) {
   // Also, first reinitialize vtable because it may have gotten out of synch
   // while the new class wasn't connected to the class hierarchy.
   CodeCache::flush_dependents_on(k);
+}
+
+// Enhanced class redefinition
+void SystemDictionary::remove_from_hierarchy(instanceKlassHandle k) {
+    assert(k.not_null(), "just checking");
+
+  // remove receiver from sibling list
+  k->remove_from_sibling_list();
+}
+
+void SystemDictionary::update_constraints_after_redefinition() {
+  constraints()->update_after_redefinition();
+}
+
+void SystemDictionary::rollback_redefinition() {
+    dictionary()->rollback_redefinition();
 }
 
 // ----------------------------------------------------------------------------

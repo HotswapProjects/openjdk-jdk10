@@ -4091,7 +4091,14 @@ public:
                                                                             \
   product(ccstr, AllocateHeapAt, NULL,                                      \
           "Path to the directoy where a temporary file will be created "    \
-          "to use as the backing store for Java Heap.")
+          "to use as the backing store for Java Heap.")                     \
+                                                                            \
+  product(bool, AllowEnhancedClassRedefinition, true,                       \
+             "Allow enhanced class redefinition beyond swapping method "    \
+             "bodies")                                                      \
+                                                                            \
+  product(bool, DisableHotswapAgent, false,                                 \
+             "Disable integrated Hotswap Agent (HotswapVM only)")
 
 
 /*

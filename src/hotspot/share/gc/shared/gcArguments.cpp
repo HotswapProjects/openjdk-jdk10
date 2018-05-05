@@ -71,7 +71,10 @@ void GCArguments::select_gc() {
 
 void GCArguments::select_gc_ergonomically() {
 #if INCLUDE_ALL_GCS
-  if (os::is_server_class_machine()) {
+  if (AllowEnhancedClassRedefinition) {
+    // Enhanced class redefinition only supports serial GC at the moment
+    FLAG_SET_ERGO(bool, UseSerialGC, true);
+  } else if (os::is_server_class_machine()) {
     FLAG_SET_ERGO_IF_DEFAULT(bool, UseG1GC, true);
   } else {
     FLAG_SET_ERGO_IF_DEFAULT(bool, UseSerialGC, true);

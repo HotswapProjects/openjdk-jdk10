@@ -158,6 +158,8 @@ class GCTimer;
                                                                                                                          \
   /* support for dynamic typing; it's OK if these are NULL in earlier JDKs */                                            \
   do_klass(DirectMethodHandle_klass,                    java_lang_invoke_DirectMethodHandle,       Opt                 ) \
+  do_klass(DirectMethodHandle_StaticAccessor_klass,     java_lang_invoke_DirectMethodHandle_StaticAccessor, Opt        ) \
+  do_klass(DirectMethodHandle_Accessor_klass,           java_lang_invoke_DirectMethodHandle_Accessor, Opt              ) \
   do_klass(MethodHandle_klass,                          java_lang_invoke_MethodHandle,             Pre                 ) \
   do_klass(VarHandle_klass,                             java_lang_invoke_VarHandle,                Pre                 ) \
   do_klass(MemberName_klass,                            java_lang_invoke_MemberName,               Pre                 ) \
@@ -429,6 +431,9 @@ public:
     initialize_wk_klasses_until((WKID) limit, start_id, THREAD);
   }
 
+  // Enhanced class redefinition
+  static void rollback_redefinition();
+
 public:
   #define WK_KLASS_DECLARE(name, symbol, option) \
     static InstanceKlass* name() { return check_klass_##option(_well_known_klasses[WK_KLASS_ENUM_NAME(name)]); } \
@@ -463,6 +468,10 @@ public:
   static InstanceKlass* abstract_ownable_synchronizer_klass() { return check_klass(_abstract_ownable_synchronizer_klass); }
 
   static void load_abstract_ownable_synchronizer_klass(TRAPS);
+
+  // Enhanced class redefinition
+  static void remove_from_hierarchy(instanceKlassHandle k);
+  static void update_constraints_after_redefinition();
 
 protected:
   // Tells whether ClassLoader.loadClassInternal is present

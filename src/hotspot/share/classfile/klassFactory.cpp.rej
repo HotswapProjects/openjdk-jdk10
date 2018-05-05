@@ -1,0 +1,8 @@
+@@ -168,6 +169,7 @@
+                                                      Handle protection_domain,
+                                                      const InstanceKlass* host_klass,
+                                                      GrowableArray<Handle>* cp_patches,
++                                                     const bool pick_newest,
+                                                      TRAPS) {
+   assert(stream != NULL, "invariant");
+   assert(loader_data != NULL, "invariant");
