@@ -1,11 +1,3 @@
-@@ -307,6 +309,7 @@
-                                     Handle class_loader,
-                                     Handle protection_domain,
-                                     ClassFileStream* st,
-+                                    instanceKlassHandle old_klass,
-                                     TRAPS);
- 
-   // Lookup an already loaded class. If not found NULL is returned.
 @@ -348,6 +351,7 @@
    // Iterate over all klasses in dictionary
    //   Just the classes from defining class loaders
@@ -14,12 +6,3 @@
    // Added for initialize_itable_for_klass to handle exceptions
    static void classes_do(void f(Klass*, TRAPS), TRAPS);
    //   All classes, and their class loaders
-@@ -636,7 +647,7 @@
-   // after waiting, but before reentering SystemDictionary_lock
-   // to preserve lock order semantics.
-   static void double_lock_wait(Handle lockObject, TRAPS);
--  static void define_instance_class(instanceKlassHandle k, TRAPS);
-+  static void define_instance_class(instanceKlassHandle k, instanceKlassHandle old_klass, TRAPS);
-   static instanceKlassHandle find_or_define_instance_class(Symbol* class_name,
-                                                 Handle class_loader,
-                                                 instanceKlassHandle k, TRAPS);

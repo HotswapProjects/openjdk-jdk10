@@ -254,7 +254,7 @@ class ChangePointersOopClosure : public ExtendedOopClosure {
         if (new_method != NULL) {
           // Note: we might set NULL at this point, which should force AbstractMethodError at runtime
           CallInfo info(new_method, newest);
-          MethodHandles::init_method_MemberName(obj, info, false, true);
+          MethodHandles::init_method_MemberName(obj, info, true);
         } else {
           java_lang_invoke_MemberName::set_vmtarget(obj, NULL);
         }

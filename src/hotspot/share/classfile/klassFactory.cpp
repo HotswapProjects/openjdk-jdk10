@@ -181,6 +181,7 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                                                 Handle protection_domain,
                                                 const InstanceKlass* host_klass,
                                                 GrowableArray<Handle>* cp_patches,
+                                                const bool pick_newest,
                                                 TRAPS) {
   assert(stream != NULL, "invariant");
   assert(loader_data != NULL, "invariant");

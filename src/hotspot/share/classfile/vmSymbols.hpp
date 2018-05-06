@@ -465,6 +465,12 @@
   template(module_entry_name,                         "module_entry")                             \
   template(resolved_references_name,                  "<resolved_references>")                    \
   template(init_lock_name,                            "<init_lock>")                              \
+  template(static_offset_name,                        "staticOffset")                             \
+  template(static_base_name,                          "staticBase")                               \
+  template(field_offset_name,                         "fieldOffset")                              \
+  template(field_type_name,                           "fieldType")                                \
+                                                                                                  \
+   /* name symbols needed by intrinsics */                                                         \
                                                                                                   \
   /* name symbols needed by intrinsics */                                                         \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, VM_SYMBOL_IGNORE, template, VM_SYMBOL_IGNORE, VM_ALIAS_IGNORE) \

@@ -317,6 +317,7 @@ public:
                                             Handle class_loader,
                                             Handle protection_domain,
                                             ClassFileStream* st,
+                                            InstanceKlass* old_klass,
                                             TRAPS);
 
   // Lookup an already loaded class. If not found NULL is returned.
@@ -639,7 +640,7 @@ protected:
   // after waiting, but before reentering SystemDictionary_lock
   // to preserve lock order semantics.
   static void double_lock_wait(Handle lockObject, TRAPS);
-  static void define_instance_class(InstanceKlass* k, TRAPS);
+  static void define_instance_class(InstanceKlass* k, InstanceKlass* old_klass, TRAPS);
   static InstanceKlass* find_or_define_instance_class(Symbol* class_name,
                                                 Handle class_loader,
                                                 InstanceKlass* k, TRAPS);
