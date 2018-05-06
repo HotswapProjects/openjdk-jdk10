@@ -7,30 +7,3 @@
          // Entry was not visited in phase1 (negated test from phase1)
          assert(!loader_data->is_the_null_class_loader_data(), "unloading entry with null class loader");
          ClassLoaderData* k_def_class_loader_data = ik->class_loader_data();
-@@ -413,7 +453,7 @@
-                           ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
-   DictionaryEntry* entry = get_entry(index, hash, name, loader_data);
-   if (entry != NULL && entry->is_valid_protection_domain(protection_domain)) {
--    return entry->klass();
-+    return old_if_redefined(entry->klass());
-   } else {
-     return NULL;
-   }
-@@ -426,7 +466,7 @@
-   assert (index == index_for(name, loader_data), "incorrect index?");
- 
-   DictionaryEntry* entry = get_entry(index, hash, name, loader_data);
--  return (entry != NULL) ? entry->klass() : (Klass*)NULL;
-+  return old_if_redefined((entry != NULL) ? entry->klass() : (Klass*)NULL);
- }
- 
- 
-@@ -438,7 +478,7 @@
-   assert (index == index_for(name, NULL), "incorrect index?");
- 
-   DictionaryEntry* entry = get_entry(index, hash, name, NULL);
--  return (entry != NULL) ? entry->klass() : (Klass*)NULL;
-+  return old_if_redefined((entry != NULL) ? entry->klass() : (Klass*)NULL);
- }
- 
- 

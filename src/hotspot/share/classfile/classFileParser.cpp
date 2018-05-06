@@ -888,6 +888,8 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* const stream,
                                                   CHECK);
       }
 
+      interf = maybe_newest(interf);
+
       if (!interf->is_interface()) {
         THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
                    "Implementing class");
@@ -6056,14 +6058,15 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         CHECK);
     }
     Handle loader(THREAD, _loader_data->class_loader());
-    _super_klass = (const InstanceKlass*)
+    const Klass* super_klass =
                        SystemDictionary::resolve_super_or_fail(_class_name,
                                                                super_class_name,
                                                                loader,
                                                                _protection_domain,
                                                                true,
                                                                CHECK);
-  }
+   _super_klass = (const InstanceKlass*) maybe_newest(super_klass);
+ }
 
   if (_super_klass != NULL) {
     if (_super_klass->has_nonstatic_concrete_methods()) {
