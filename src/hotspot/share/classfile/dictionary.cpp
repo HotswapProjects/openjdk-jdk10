@@ -283,8 +283,8 @@ void Dictionary::classes_do(KlassClosure* closure) {
     for (DictionaryEntry* probe = bucket(index);
                           probe != NULL;
                           probe = probe->next()) {
-      Klass* k = probe->klass();
-      if (probe->loader_data() == k->class_loader_data()) {
+      InstanceKlass* k = probe->instance_klass();
+      if (loader_data() == k->class_loader_data()) {
         closure->do_klass(k);
       }
     }
@@ -375,13 +375,13 @@ DictionaryEntry* Dictionary::get_entry(int index, unsigned int hash,
   return NULL;
 }
 
-bool Dictionary::update_klass(int index, unsigned int hash, Symbol* name, ClassLoaderData* loader_data, KlassHandle k, KlassHandle old_klass) {
+bool Dictionary::update_klass(unsigned int hash, Symbol* name, ClassLoaderData* loader_data, InstanceKlass* k, InstanceKlass* old_klass) {
   // There are several entries for the same class in the dictionary: One extra entry for each parent classloader of the classloader of the class.
   bool found = false;
   for (int index = 0; index < table_size(); index++) {
     for (DictionaryEntry* entry = bucket(index); entry != NULL; entry = entry->next()) {
-      if (entry->klass() == old_klass()) {
-        entry->set_literal(k());
+      if (entry->instance_klass() == old_klass) {
+        entry->set_literal(k);
         found = true;
       }
     }
@@ -394,8 +394,8 @@ void Dictionary::rollback_redefinition() {
     for (DictionaryEntry* entry = bucket(index);
                           entry != NULL;
                           entry = entry->next()) {
-      if (entry->klass()->is_redefining()) {
-        entry->set_literal(entry->klass()->old_version());
+      if (entry->instance_klass()->is_redefining()) {
+        entry->set_literal((InstanceKlass*) entry->instance_klass()->old_version());
       }
     }
   }
@@ -435,7 +435,7 @@ InstanceKlass* Dictionary::find_shared_class(int index, unsigned int hash,
   assert (index == index_for(name), "incorrect index?");
 
   DictionaryEntry* entry = get_entry(index, hash, name);
-  return old_if_redefined(entry != NULL) ? entry->instance_klass() : NULL);
+  return old_if_redefined((entry != NULL) ? entry->instance_klass() : NULL);
 }
 
 

@@ -47,6 +47,7 @@
 #include "prims/jvmtiClassFileReconstituter.hpp"
 #include "prims/jvmtiEnhancedRedefineClasses.hpp"
 #include "prims/methodComparator.hpp"
+#include "prims/resolvedMethodTable.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/relocator.hpp"
 #include "utilities/bitMap.inline.hpp"
@@ -86,6 +87,7 @@ VM_EnhancedRedefineClasses::VM_EnhancedRedefineClasses(jint class_count, const j
   _class_defs = class_defs;
   _class_load_kind = class_load_kind;
   _res = JVMTI_ERROR_NONE;
+  _any_class_has_resolved_methods = false;
 }
 
 static inline InstanceKlass* get_ik(jclass def) {
@@ -253,10 +255,11 @@ class ChangePointersOopClosure : public ExtendedOopClosure {
 
         if (new_method != NULL) {
           // Note: we might set NULL at this point, which should force AbstractMethodError at runtime
-          CallInfo info(new_method, newest);
-          MethodHandles::init_method_MemberName(obj, info, true);
+          CallInfo info(new_method, newest, THREAD);
+          Handle objHandle(Thread::current(), obj);  // TODO : review thread
+          MethodHandles::init_method_MemberName(objHandle, info, true);
         } else {
-          java_lang_invoke_MemberName::set_vmtarget(obj, NULL);
+          java_lang_invoke_MemberName::set_method(obj, NULL);
         }
       }
     } else if (MethodHandles::ref_kind_is_field(ref_kind)) {
@@ -275,7 +278,8 @@ class ChangePointersOopClosure : public ExtendedOopClosure {
           InstanceKlass* newest = InstanceKlass::cast(k->newest_version());
           fieldDescriptor fd_new;
           if (newest->find_local_field(fd.name(), fd.signature(), &fd_new)) {
-            MethodHandles::init_field_MemberName(obj, fd_new, MethodHandles::ref_kind_is_setter(ref_kind));
+            Handle objHandle(Thread::current(), obj);  // TODO : review thread
+            MethodHandles::init_field_MemberName(objHandle, fd_new, MethodHandles::ref_kind_is_setter(ref_kind));
           } else {
             // Matching field is not found in new version, not much we can do here.
             // JVM will crash once faulty MH is invoked.
@@ -283,7 +287,7 @@ class ChangePointersOopClosure : public ExtendedOopClosure {
             // Eventually, we probably want to replace them with something more meaningful,
             // like instance throwing NoSuchFieldError or DMH that will resort to dynamic
             // field resolution (with possibility of type conversion)
-            java_lang_invoke_MemberName::set_vmtarget(obj, NULL);
+            java_lang_invoke_MemberName::set_method(obj, NULL);
             java_lang_invoke_MemberName::set_vmindex(obj, 0);
             return false;
           }
@@ -474,7 +478,7 @@ void VM_EnhancedRedefineClasses::doit() {
   }
 
   // Deoptimize all compiled code that depends on this class (do only once, because it clears whole cache)
-  flush_dependent_code(instanceKlassHandle(thread, (Klass*)NULL), thread);
+  flush_dependent_code(NULL, thread);
 
   ChangePointersOopClosure<StoreNoBarrier> oopClosureNoBarrier;
   ChangePointersOopClosure<StoreBarrier> oopClosure;
@@ -524,7 +528,7 @@ void VM_EnhancedRedefineClasses::doit() {
       // Also, set array klasses element klass.
       cur->set_array_klasses(array_klasses);
       ObjArrayKlass::cast(array_klasses)->set_element_klass(cur);
-      java_lang_Class::set_array_klass(cur->java_mirror(), array_klasses);
+      java_lang_Class::release_set_array_klass(cur->java_mirror(), array_klasses);
       java_lang_Class::set_component_mirror(array_klasses->java_mirror(), cur->java_mirror());
     }
 
@@ -554,8 +558,7 @@ void VM_EnhancedRedefineClasses::doit() {
 
   // Unmark Klass*s as "redefining"
   for (int i = 0; i < _new_classes->length(); i++) {
-    Klass* cur_klass = _new_classes->at(i);
-    InstanceKlass* cur = (InstanceKlass*)cur_klass;
+    InstanceKlass* cur = _new_classes->at(i);
     cur->set_redefining(false);
     cur->clear_update_information();
   }
@@ -569,6 +572,12 @@ void VM_EnhancedRedefineClasses::doit() {
   // FIXME - check if it was in JDK8. Copied from standard JDK9 hotswap.
   //MethodDataCleaner clean_weak_method_links;
   //ClassLoaderDataGraph::classes_do(&clean_weak_method_links);
+
+  // JSR-292 support
+  if (_any_class_has_resolved_methods) {
+    bool trace_name_printed = false;
+    ResolvedMethodTable::adjust_method_entries(&trace_name_printed);
+  }
 
   // Disable any dependent concurrent compilations
   SystemDictionary::notice_modification();
@@ -663,7 +672,7 @@ bool VM_EnhancedRedefineClasses::is_modifiable_class(oop klass_mirror) {
 jvmtiError VM_EnhancedRedefineClasses::load_new_class_versions(TRAPS) {
 
   _affected_klasses = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<Klass*>(_class_count, true);
-  _new_classes = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<Klass*>(_class_count, true);
+  _new_classes = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<InstanceKlass*>(_class_count, true);
 
   ResourceMark rm(THREAD);
 
@@ -686,7 +695,7 @@ jvmtiError VM_EnhancedRedefineClasses::load_new_class_versions(TRAPS) {
     // versions are deleted. Constant pools are deallocated while merging
     // constant pools
     HandleMark hm(THREAD);
-    instanceKlassHandle the_class(THREAD, _affected_klasses->at(i));
+    InstanceKlass* the_class = InstanceKlass::cast(_affected_klasses->at(i));
     Symbol*  the_class_sym = the_class->name();
 
     // Ensure class is linked before redefine
@@ -730,9 +739,9 @@ jvmtiError VM_EnhancedRedefineClasses::load_new_class_versions(TRAPS) {
     // Set redefined class handle in JvmtiThreadState class.
     // This redefined class is sent to agent event handler for class file
     // load hook event.
-    state->set_class_being_redefined(&the_class, _class_load_kind);
+    state->set_class_being_redefined(the_class, _class_load_kind);
 
-    Klass* k = SystemDictionary::resolve_from_stream(the_class_sym,
+    InstanceKlass* k = SystemDictionary::resolve_from_stream(the_class_sym,
                                                 the_class_loader,
                                                 protection_domain,
                                                 &st,
@@ -762,9 +771,9 @@ jvmtiError VM_EnhancedRedefineClasses::load_new_class_versions(TRAPS) {
       }
     }
 
-    instanceKlassHandle new_class (THREAD, k);
-    the_class->set_new_version(new_class());
-    _new_classes->append(new_class());
+    InstanceKlass* new_class = k;
+    the_class->set_new_version(new_class);
+    _new_classes->append(new_class);
 
     int redefinition_flags = Klass::NoRedefinition;
     if (not_changed) {
@@ -835,12 +844,12 @@ jvmtiError VM_EnhancedRedefineClasses::load_new_class_versions(TRAPS) {
 /**
   Calculated the difference between new and old class  (field change, method change, supertype change, ...).
 */
-int VM_EnhancedRedefineClasses::calculate_redefinition_flags(instanceKlassHandle new_class) {
+int VM_EnhancedRedefineClasses::calculate_redefinition_flags(InstanceKlass* new_class) {
   int result = Klass::NoRedefinition;
   log_info(redefine, class, load)("Comparing different class versions of class %s",new_class->name()->as_C_string());
 
   assert(new_class->old_version() != NULL, "must have old version");
-  instanceKlassHandle the_class(new_class->old_version());
+  InstanceKlass* the_class = InstanceKlass::cast(new_class->old_version());
 
   // Check whether class is in the error init state.
   if (the_class->is_in_error_state()) {
@@ -878,8 +887,8 @@ int VM_EnhancedRedefineClasses::calculate_redefinition_flags(instanceKlassHandle
   // Interfaces removed?
   Array<Klass*>* old_interfaces = the_class->transitive_interfaces();
   for (i = 0; i < old_interfaces->length(); i++) {
-    instanceKlassHandle old_interface(old_interfaces->at(i));
-    if (!new_class->implements_interface_any_version(old_interface())) {
+    InstanceKlass* old_interface = InstanceKlass::cast(old_interfaces->at(i));
+    if (!new_class->implements_interface_any_version(old_interface)) {
       result = result | Klass::RemoveSuperType | Klass::ModifyClass;
       log_info(redefine, class, load)("removed interface %s", old_interface->name()->as_C_string());
     }
@@ -1104,11 +1113,11 @@ int VM_EnhancedRedefineClasses::calculate_redefinition_flags(instanceKlassHandle
     }
   }
 
-  if (new_class()->size() != new_class->old_version()->size()) {
+  if (new_class->size() != new_class->old_version()->size()) {
     result |= Klass::ModifyClassSize;
   }
 
-  if (new_class->size_helper() != ((InstanceKlass*)(new_class->old_version()))->size_helper()) {
+  if (new_class->size_helper() != (InstanceKlass::cast((new_class->old_version()))->size_helper())) {
     result |= Klass::ModifyInstanceSize;
   }
 
@@ -1125,14 +1134,14 @@ int VM_EnhancedRedefineClasses::calculate_redefinition_flags(instanceKlassHandle
   @param class_byte_count - size of class_bytes
   @param not_changed - new_class not available or same as current class
 */
-jvmtiError VM_EnhancedRedefineClasses::find_class_bytes(instanceKlassHandle the_class, const unsigned char **class_bytes, jint *class_byte_count, jboolean *not_changed) {
+jvmtiError VM_EnhancedRedefineClasses::find_class_bytes(InstanceKlass* the_class, const unsigned char **class_bytes, jint *class_byte_count, jboolean *not_changed) {
 
   *not_changed = false;
 
   // Search for the index in the redefinition array that corresponds to the current class
   int i;
   for (i = 0; i < _class_count; i++) {
-    if (the_class() == get_ik(_class_defs[i].klass))
+    if (the_class == get_ik(_class_defs[i].klass))
       break;
   }
 
@@ -1295,7 +1304,7 @@ void VM_EnhancedRedefineClasses::rollback() {
   }
 
   for (int i = 0; i < _new_classes->length(); i++) {
-    instanceKlassHandle new_class = _new_classes->at(i);
+    InstanceKlass* new_class = _new_classes->at(i);
     new_class->set_redefining(false);
     new_class->old_version()->set_new_version(NULL);
     new_class->set_old_version(NULL);
@@ -1368,7 +1377,7 @@ void VM_EnhancedRedefineClasses::ClearCpoolCacheAndUnpatch::do_klass(Klass* k) {
   // If the class being redefined is java.lang.Object, we need to fix all
   // array class vtables also
   if (k->is_array_klass() && _the_class_oop == SystemDictionary::Object_klass()) {
-    k->vtable()->adjust_method_entries(the_class, &trace_name_printed);
+    k->vtable().adjust_method_entries(the_class, &trace_name_printed);
   } else if (k->is_instance_klass()) {
     HandleMark hm(_thread);
     InstanceKlass *ik = InstanceKlass::cast(k);
@@ -1573,7 +1582,7 @@ void VM_EnhancedRedefineClasses::check_methods_and_mark_as_obsolete() {
 //
 class TransferNativeFunctionRegistration {
  private:
-  instanceKlassHandle the_class;
+  InstanceKlass* the_class;
   int prefix_count;
   char** prefixes;
 
@@ -1588,7 +1597,7 @@ class TransferNativeFunctionRegistration {
                                      Symbol* signature) {
     TempNewSymbol name_symbol = SymbolTable::probe(name_str, (int)name_len);
     if (name_symbol != NULL) {
-      Method* method = the_class()->lookup_method(name_symbol, signature);
+      Method* method = the_class->lookup_method(name_symbol, signature);
       if (method != NULL) {
         // Even if prefixed, intermediate methods must exist.
         if (method->is_native()) {
@@ -1651,7 +1660,7 @@ class TransferNativeFunctionRegistration {
  public:
 
   // Construct a native method transfer processor for this class.
-  TransferNativeFunctionRegistration(instanceKlassHandle _the_class) {
+  TransferNativeFunctionRegistration(InstanceKlass* _the_class) {
     assert(SafepointSynchronize::is_at_safepoint(), "sanity check");
 
     the_class = _the_class;
@@ -1678,7 +1687,7 @@ class TransferNativeFunctionRegistration {
 };
 
 // Don't lose the association between a native method and its JNI function.
-void VM_EnhancedRedefineClasses::transfer_old_native_function_registrations(instanceKlassHandle the_class) {
+void VM_EnhancedRedefineClasses::transfer_old_native_function_registrations(InstanceKlass* the_class) {
   TransferNativeFunctionRegistration transfer(the_class);
   transfer.transfer_registrations(_deleted_methods, _deleted_methods_length);
   transfer.transfer_registrations(_matching_old_methods, _matching_methods_length);
@@ -1700,7 +1709,7 @@ void VM_EnhancedRedefineClasses::transfer_old_native_function_registrations(inst
 // subsequent calls to RedefineClasses need only throw away code
 // that depends on the class.
 //
-void VM_EnhancedRedefineClasses::flush_dependent_code(instanceKlassHandle k_h, TRAPS) {
+void VM_EnhancedRedefineClasses::flush_dependent_code(InstanceKlass* k_h, TRAPS) {
   assert_locked_or_safepoint(Compile_lock);
 
   // All dependencies have been recorded from startup or this is a second or
@@ -1795,8 +1804,8 @@ void VM_EnhancedRedefineClasses::compute_added_deleted_matching_methods() {
 /**
   FIXME - swap_annotations is never called, check that annotations work
 */
-void VM_EnhancedRedefineClasses::swap_annotations(instanceKlassHandle the_class,
-                                          instanceKlassHandle new_class) {
+void VM_EnhancedRedefineClasses::swap_annotations(InstanceKlass* the_class,
+                                          InstanceKlass* new_class) {
   // FIXME - probably original implementation only 
   // Swap annotation fields values
   Annotations* old_annotations = the_class->annotations();
@@ -1817,7 +1826,7 @@ void VM_EnhancedRedefineClasses::swap_annotations(instanceKlassHandle the_class,
 //      a helper method to be specified. The interesting parameters
 //      that we would like to pass to the helper method are saved in
 //      static global fields in the VM operation.
-void VM_EnhancedRedefineClasses::redefine_single_class(Klass* new_class_oop, TRAPS) {
+void VM_EnhancedRedefineClasses::redefine_single_class(InstanceKlass* new_class_oop, TRAPS) {
 
   HandleMark hm(THREAD);   // make sure handles from this call are freed
 
@@ -1825,13 +1834,13 @@ void VM_EnhancedRedefineClasses::redefine_single_class(Klass* new_class_oop, TRA
     _timer_rsc_phase1.start();
   }
 
-  instanceKlassHandle new_class(THREAD, new_class_oop);
-  instanceKlassHandle the_class(THREAD, new_class_oop->old_version());
-  assert(the_class.not_null(), "must have old version");
+  InstanceKlass* new_class = new_class_oop;
+  InstanceKlass* the_class = InstanceKlass::cast(new_class_oop->old_version());
+  assert(the_class != NULL, "must have old version");
 
   // Remove all breakpoints in methods of this class
   JvmtiBreakpoints& jvmti_breakpoints = JvmtiCurrentBreakpoints::get_jvmti_breakpoints();
-  jvmti_breakpoints.clearall_in_class_at_safepoint(the_class());
+  jvmti_breakpoints.clearall_in_class_at_safepoint(the_class);
 
   // DCEVM Deoptimization is always for whole java world, call only once after all classes are redefined
   // Deoptimize all compiled code that depends on this class
@@ -1839,17 +1848,20 @@ void VM_EnhancedRedefineClasses::redefine_single_class(Klass* new_class_oop, TRA
 
   _old_methods = the_class->methods();
   _new_methods = new_class->methods();
-  _the_class_oop = the_class();
+  _the_class_oop = the_class;
   compute_added_deleted_matching_methods();
 
   // track number of methods that are EMCP for add_previous_version() call below
   check_methods_and_mark_as_obsolete();
   update_jmethod_ids();
 
+  _any_class_has_resolved_methods = the_class->has_resolved_methods() || _any_class_has_resolved_methods;
+
   transfer_old_native_function_registrations(the_class);
 
 
   // JSR-292 support
+  /* FIXME: j10 dropped support for it?
   MemberNameTable* mnt = the_class->member_names();
   assert(new_class->member_names() == NULL, "");
   if (mnt != NULL) {
@@ -1860,6 +1872,7 @@ void VM_EnhancedRedefineClasses::redefine_single_class(Klass* new_class_oop, TRA
     // bool trace_name_printed = false;
     // mnt->adjust_method_entries(new_class(), &trace_name_printed);
   }
+  */
 
   // Adjust constantpool caches for all classes that reference methods of the evolved class.
   ClearCpoolCacheAndUnpatch clear_cpool_cache(THREAD);
@@ -1869,7 +1882,7 @@ void VM_EnhancedRedefineClasses::redefine_single_class(Klass* new_class_oop, TRA
     ResourceMark rm(THREAD);
     // increment the classRedefinedCount field in the_class and in any
     // direct and indirect subclasses of the_class
-    increment_class_counter((InstanceKlass *)the_class(), THREAD);
+    increment_class_counter(the_class, THREAD);
     log_info(redefine, class, load)
       ("redefined name=%s, count=%d (avail_mem=" UINT64_FORMAT "K)",
        the_class->external_name(), java_lang_Class::classRedefinedCount(the_class->java_mirror()), os::available_memory() >> 10);
@@ -1915,12 +1928,12 @@ void VM_EnhancedRedefineClasses::CheckClass::do_klass(Klass* k) {
   // a vtable should never contain old or obsolete methods
   ResourceMark rm(_thread);
   if (k->vtable_length() > 0 &&
-      !k->vtable()->check_no_old_or_obsolete_entries()) {
+      !k->vtable().check_no_old_or_obsolete_entries()) {
     if (log_is_enabled(Trace, redefine, class, obsolete, metadata)) {
       log_trace(redefine, class, obsolete, metadata)
         ("klassVtable::check_no_old_or_obsolete_entries failure -- OLD or OBSOLETE method found -- class: %s",
          k->signature_name());
-      k->vtable()->dump_vtable();
+      k->vtable().dump_vtable();
     }
     no_old_methods = false;
   }
@@ -1931,12 +1944,12 @@ void VM_EnhancedRedefineClasses::CheckClass::do_klass(Klass* k) {
 
     // an itable should never contain old or obsolete methods
     if (ik->itable_length() > 0 &&
-        !ik->itable()->check_no_old_or_obsolete_entries()) {
+        !ik->itable().check_no_old_or_obsolete_entries()) {
       if (log_is_enabled(Trace, redefine, class, obsolete, metadata)) {
         log_trace(redefine, class, obsolete, metadata)
           ("klassItable::check_no_old_or_obsolete_entries failure -- OLD or OBSOLETE method found -- class: %s",
            ik->signature_name());
-        ik->itable()->dump_itable();
+        ik->itable().dump_itable();
       }
       no_old_methods = false;
     }
@@ -2090,7 +2103,7 @@ class AffectedKlassClosure : public KlassClosure {
 */
 jvmtiError VM_EnhancedRedefineClasses::find_sorted_affected_classes(TRAPS) {
   for (int i = 0; i < _class_count; i++) {
-    instanceKlassHandle klass_handle(THREAD, get_ik(_class_defs[i].klass));
+    InstanceKlass* klass_handle = get_ik(_class_defs[i].klass);
     klass_handle->set_redefinition_flag(Klass::MarkedAsAffected);
     assert(klass_handle->new_version() == NULL, "must be new class");
 
@@ -2145,7 +2158,7 @@ jvmtiError VM_EnhancedRedefineClasses::do_topological_class_sorting(TRAPS) {
   // Collect dependencies
   GrowableArray<KlassPair> links;
   for (int i = 0; i < _class_count; i++) {
-    instanceKlassHandle klass(THREAD, get_ik(_class_defs[i].klass));
+    InstanceKlass* klass = get_ik(_class_defs[i].klass);
 
     ClassFileStream st((u1*)_class_defs[i].class_bytes,
                            _class_defs[i].class_byte_count,
@@ -2162,16 +2175,16 @@ jvmtiError VM_EnhancedRedefineClasses::do_topological_class_sorting(TRAPS) {
                            true,
                            THREAD);
 
-    const Klass* super_klass = parser.super_klass();
-    if (super_klass != NULL && _affected_klasses->contains(const_cast<Klass*>(super_klass))) {
-      links.append(KlassPair(super_klass, klass()));
+    Klass* super_klass = const_cast<Klass*>(parser.super_klass());
+    if (super_klass != NULL && _affected_klasses->contains(super_klass)) {
+      links.append(KlassPair(super_klass, klass));
     }
 
     Array<Klass*>* local_interfaces = parser.local_interfaces();
     for (int j = 0; j < local_interfaces->length(); j++) {
-      const Klass* iface = local_interfaces->at(j);
-      if (iface != NULL && _affected_klasses->contains(const_cast<Klass*>(iface))) {
-        links.append(KlassPair(iface, klass()));
+      Klass* iface = local_interfaces->at(j);
+      if (iface != NULL && _affected_klasses->contains(iface)) {
+        links.append(KlassPair(iface, klass));
       }
     }
 

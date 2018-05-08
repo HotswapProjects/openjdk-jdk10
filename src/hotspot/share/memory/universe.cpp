@@ -193,7 +193,8 @@ void Universe::root_oops_do(OopClosure *oopClosure) {
   JNIHandles::oops_do(oopClosure);   // Global (strong) JNI handles
   Threads::oops_do(oopClosure, NULL);
   ObjectSynchronizer::oops_do(oopClosure);
-  FlatProfiler::oops_do(oopClosure);
+  // TODL: review, flat profiler was removed in j10
+  // FlatProfiler::oops_do(oopClosure);
   JvmtiExport::oops_do(oopClosure);
 
   // Now adjust pointers in remaining weak roots.  (All of which should

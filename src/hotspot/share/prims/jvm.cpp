@@ -919,7 +919,7 @@ static jclass jvm_define_class_common(JNIEnv *env, const char *name,
                                                    class_loader,
                                                    protection_domain,
                                                    &st,
-                                                   instanceKlassHandle(),
+                                                   NULL,
                                                    CHECK_NULL);
 
   if (log_is_enabled(Debug, class, resolve) && k != NULL) {

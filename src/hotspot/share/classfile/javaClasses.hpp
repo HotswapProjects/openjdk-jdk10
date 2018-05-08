@@ -72,8 +72,6 @@ class java_lang_String : AllStatic {
 
   static void compute_offsets();
 
-  static void set_component_mirror(oop java_class, oop comp_mirror);
-
   // Instance creation
   static Handle create_from_unicode(jchar* unicode, int len, TRAPS);
   static oop    create_oop_from_unicode(jchar* unicode, int len, TRAPS);
@@ -213,6 +211,7 @@ class java_lang_Class : AllStatic {
   static void initialize_mirror_fields(Klass* k, Handle mirror, Handle protection_domain, TRAPS);
   static void set_mirror_module_field(Klass* K, Handle mirror, Handle module, TRAPS);
  public:
+  static void set_component_mirror(oop java_class, oop comp_mirror);
   static void allocate_fixup_lists();
   static void compute_offsets();
 

@@ -888,7 +888,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* const stream,
                                                   CHECK);
       }
 
-      interf = maybe_newest(interf);
+      interf = (Klass *) maybe_newest(interf);
 
       if (!interf->is_interface()) {
         THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),

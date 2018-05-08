@@ -94,7 +94,7 @@ void LoaderConstraintTable::update_after_redefinition() {
       LoaderConstraintEntry* probe = *p;
       if (probe->klass() != NULL) {
         // We swap the class with the newest version with an assumption that the hash will be the same
-        probe->set_klass(probe->klass()->newest_version());
+        probe->set_klass((InstanceKlass*) probe->klass()->newest_version());
       }
       p = probe->next_addr();
     }

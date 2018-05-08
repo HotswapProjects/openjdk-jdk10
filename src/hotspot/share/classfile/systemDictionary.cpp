@@ -1086,7 +1086,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                                      Handle class_loader,
                                                      Handle protection_domain,
                                                      ClassFileStream* st,
-                                                     instanceKlassHandle old_klass,
+                                                     InstanceKlass* old_klass,
                                                      TRAPS) {
 #if INCLUDE_CDS
   ResourceMark rm(THREAD);
@@ -1100,7 +1100,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
 
   HandleMark hm(THREAD);
 
-  bool is_redefining = !old_klass.is_null();
+  bool is_redefining = (old_klass != NULL);
 
   // Classloaders that support parallelism, e.g. bootstrap classloader,
   // or all classloaders with UnsyncloadClass do not acquire lock here
@@ -1149,9 +1149,9 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                          CHECK_NULL);
   }
 
-  if (is_redefining && !k.is_null()) {
+  if (is_redefining && k != NULL) {
     k->set_redefining(true);
-    k->set_old_version(old_klass());
+    k->set_old_version(old_klass);
   }
 
   assert(k != NULL, "no klass created");
@@ -1185,7 +1185,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
     MutexLocker mu(SystemDictionary_lock, THREAD);
 
     Klass* check = find_class(h_name, k->class_loader_data());
-    assert((check == k() && !k->is_redefining()) || (k->is_redefining() && check == k->old_version()), "should be present in the dictionary");
+    assert((check == k && !k->is_redefining()) || (k->is_redefining() && check == k->old_version()), "should be present in the dictionary");
   } );
 
   return k;
@@ -1628,7 +1628,7 @@ void SystemDictionary::define_instance_class(InstanceKlass* k, InstanceKlass* ol
   HandleMark hm(THREAD);
   ClassLoaderData* loader_data = k->class_loader_data();
   Handle class_loader_h(THREAD, loader_data->class_loader());
-  bool is_redefining = !old_klass->is_null();
+  bool is_redefining = (old_klass != NULL);
 
  // for bootstrap and other parallel classloaders don't acquire lock,
  // use placeholder token
@@ -1654,7 +1654,7 @@ void SystemDictionary::define_instance_class(InstanceKlass* k, InstanceKlass* ol
   Dictionary* dictionary = loader_data->dictionary();
   unsigned int d_hash = dictionary->compute_hash(name_h);
   if (is_redefining) {
-    bool ok = dictionary()->update_klass(d_index, d_hash, name_h, loader_data, k, old_klass);
+    bool ok = dictionary->update_klass(d_hash, name_h, loader_data, k, old_klass);
     assert (ok, "must have found old class and updated!");
   }
   check_constraints(d_hash, k, class_loader_h, !is_redefining, CHECK);
@@ -1769,7 +1769,7 @@ InstanceKlass* SystemDictionary::find_or_define_instance_class(Symbol* class_nam
     }
   }
 
-  define_instance_class(k, instanceKlassHandle(), THREAD);
+  define_instance_class(k, NULL, THREAD);
 
   Handle linkage_exception = Handle(); // null handle
 
@@ -1893,8 +1893,8 @@ void SystemDictionary::add_to_hierarchy(InstanceKlass* k, TRAPS) {
 }
 
 // Enhanced class redefinition
-void SystemDictionary::remove_from_hierarchy(instanceKlassHandle k) {
-    assert(k.not_null(), "just checking");
+void SystemDictionary::remove_from_hierarchy(InstanceKlass* k) {
+    assert(k != NULL, "just checking");
 
   // remove receiver from sibling list
   k->remove_from_sibling_list();

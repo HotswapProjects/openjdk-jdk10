@@ -32,7 +32,7 @@
 #include "oops/objArrayOop.hpp"
 #include "runtime/vm_operations.hpp"
 #include "gc/shared/vmGCOperations.hpp"
-#include "../../../../../jdk/src/java.base/unix/native/include/jni_md.h"
+#include "../../../java.base/unix/native/include/jni_md.h"
 
 /**
  * Enhanced class redefiner.
@@ -80,8 +80,13 @@ class VM_EnhancedRedefineClasses: public VM_GC_Operation {
   int                         _operands_index_map_count;
   intArray *                  _operands_index_map_p;
 
-  GrowableArray<Klass*>*      _new_classes;
+  GrowableArray<InstanceKlass*>*      _new_classes;
   jvmtiError                  _res;
+
+  // Set if any of the InstanceKlasses have entries in the ResolvedMethodTable
+  // to avoid walking after redefinition if the redefined classes do not
+  // have any entries.
+  bool _any_class_has_resolved_methods;
 
   // Enhanced class redefinition, affected klasses contain all classes which should be redefined
   // either because of redefine, class hierarchy or interface change
@@ -117,8 +122,8 @@ class VM_EnhancedRedefineClasses: public VM_GC_Operation {
 
   jvmtiError do_topological_class_sorting(TRAPS);
 
-  jvmtiError find_class_bytes(instanceKlassHandle the_class, const unsigned char **class_bytes, jint *class_byte_count, jboolean *not_changed);
-  int calculate_redefinition_flags(instanceKlassHandle new_class);
+  jvmtiError find_class_bytes(InstanceKlass* the_class, const unsigned char **class_bytes, jint *class_byte_count, jboolean *not_changed);
+  int calculate_redefinition_flags(InstanceKlass* new_class);
   void calculate_instance_update_information(Klass* new_version);
 
   void rollback();
@@ -134,19 +139,19 @@ class VM_EnhancedRedefineClasses: public VM_GC_Operation {
 
   // marking methods as old and/or obsolete
   void check_methods_and_mark_as_obsolete();
-  void transfer_old_native_function_registrations(instanceKlassHandle the_class);
+  void transfer_old_native_function_registrations(InstanceKlass* the_class);
 
   // Install the redefinition of a class
-  void redefine_single_class(Klass* new_class_oop, TRAPS);
+  void redefine_single_class(InstanceKlass* new_class_oop, TRAPS);
 
-  void swap_annotations(instanceKlassHandle new_class,
-                        instanceKlassHandle scratch_class);
+  void swap_annotations(InstanceKlass* new_class,
+                        InstanceKlass* scratch_class);
 
   // Increment the classRedefinedCount field in the specific InstanceKlass
   // and in all direct and indirect subclasses.
   void increment_class_counter(InstanceKlass *ik, TRAPS);
 
-  void flush_dependent_code(instanceKlassHandle k_h, TRAPS);
+  void flush_dependent_code(InstanceKlass* k_h, TRAPS);
 
   static void dump_methods();
 

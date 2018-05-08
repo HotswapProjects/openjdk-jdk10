@@ -471,7 +471,7 @@ public:
   static void load_abstract_ownable_synchronizer_klass(TRAPS);
 
   // Enhanced class redefinition
-  static void remove_from_hierarchy(instanceKlassHandle k);
+  static void remove_from_hierarchy(InstanceKlass* k);
   static void update_constraints_after_redefinition();
 
 protected:

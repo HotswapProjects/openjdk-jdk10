@@ -119,6 +119,15 @@ public:
   }
 
   void free_entry(DictionaryEntry* entry);
+
+  // Enhanced class redefinition
+  bool update_klass(unsigned int hash, Symbol* name, ClassLoaderData* loader_data, InstanceKlass* k, InstanceKlass* old_klass);
+
+  void rollback_redefinition();
+
+  static InstanceKlass* old_if_redefined(InstanceKlass* k) {
+    return (k != NULL && k->is_redefining()) ? ((InstanceKlass* )k->old_version()) : k;
+  }
 };
 
 // An entry in the class loader data dictionaries, this describes a class as
@@ -210,15 +219,6 @@ class DictionaryEntry : public HashtableEntry<InstanceKlass*, mtClass> {
   }
 
   void verify();
-
-  // Enhanced class redefinition
-  bool update_klass(int index, unsigned int hash, Symbol* name, ClassLoaderData* loader_data, KlassHandle k, KlassHandle old_klass);
-
-  void rollback_redefinition();
-
-  static Klass* old_if_redefined(Klass* k) {
-    return (k != NULL && k->is_redefining()) ? k->old_version() : k;
-  }
 };
 
 // Entry in a SymbolPropertyTable, mapping a single Symbol*
