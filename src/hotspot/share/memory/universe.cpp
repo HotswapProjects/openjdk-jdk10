@@ -193,7 +193,7 @@ void Universe::root_oops_do(OopClosure *oopClosure) {
   JNIHandles::oops_do(oopClosure);   // Global (strong) JNI handles
   Threads::oops_do(oopClosure, NULL);
   ObjectSynchronizer::oops_do(oopClosure);
-  // TODL: review, flat profiler was removed in j10
+  // TODO: review, flat profiler was removed in j10
   // FlatProfiler::oops_do(oopClosure);
   JvmtiExport::oops_do(oopClosure);
 

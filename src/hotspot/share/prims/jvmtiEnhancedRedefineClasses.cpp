@@ -222,7 +222,8 @@ void VM_EnhancedRedefineClasses::mark_as_scavengable(nmethod* nm) {
 
 // TODO comment
 struct StoreBarrier {
-  template <class T> static void oop_store(T* p, oop v) { ::oop_store(p, v); }
+  // TODO: j10 review change ::oop_store -> HeapAccess<>::oop_store
+  template <class T> static void oop_store(T* p, oop v) { HeapAccess<>::oop_store(p, v); }
 };
 
 
@@ -255,8 +256,9 @@ class ChangePointersOopClosure : public ExtendedOopClosure {
 
         if (new_method != NULL) {
           // Note: we might set NULL at this point, which should force AbstractMethodError at runtime
-          CallInfo info(new_method, newest, THREAD);
-          Handle objHandle(Thread::current(), obj);  // TODO : review thread
+          Thread *thread = Thread::current();
+          CallInfo info(new_method, newest, thread);
+          Handle objHandle(thread, obj);  // TODO : review thread
           MethodHandles::init_method_MemberName(objHandle, info, true);
         } else {
           java_lang_invoke_MemberName::set_method(obj, NULL);
@@ -2112,7 +2114,8 @@ jvmtiError VM_EnhancedRedefineClasses::find_sorted_affected_classes(TRAPS) {
 
   // Find classes not directly redefined, but affected by a redefinition (because one of its supertypes is redefined)
   AffectedKlassClosure closure(_affected_klasses);
-  SystemDictionary::classes_do(&closure);
+  // TODO: j10 - review chancge from SystemDictionary::classes_do(&closure);
+  ClassLoaderDataGraph::classes_do(&closure);
   // TODO - ?? ClassLoaderDataGraph::classes_do(&closure);
   log_trace(redefine, class, load)("%d classes affected", _affected_klasses->length());
 
@@ -2165,10 +2168,12 @@ jvmtiError VM_EnhancedRedefineClasses::do_topological_class_sorting(TRAPS) {
                            "__VM_EnhancedRedefineClasses__",
                            ClassFileStream::verify);
 
+    Handle protection_domain(THREAD, klass->protection_domain());
+
     ClassFileParser parser(&st,
                            klass->name(),
                            klass->class_loader_data(),
-                           klass->protection_domain(),
+                           protection_domain,
                            NULL, // host_klass
                            NULL, // cp_patches
                            ClassFileParser::INTERNAL, // publicity level
