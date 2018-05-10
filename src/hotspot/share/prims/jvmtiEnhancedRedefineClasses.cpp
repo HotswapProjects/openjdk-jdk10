@@ -29,6 +29,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/verifier.hpp"
 #include "classfile/javaClasses.inline.hpp"
+#include "classfile/dictionary.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc/shared/gcLocker.hpp"
@@ -2115,7 +2116,7 @@ jvmtiError VM_EnhancedRedefineClasses::find_sorted_affected_classes(TRAPS) {
   // Find classes not directly redefined, but affected by a redefinition (because one of its supertypes is redefined)
   AffectedKlassClosure closure(_affected_klasses);
   // TODO: j10 - review chancge from SystemDictionary::classes_do(&closure);
-  ClassLoaderDataGraph::classes_do(&closure);
+  ClassLoaderData::the_null_class_loader_data()->dictionary()->classes_do(&closure);
   // TODO - ?? ClassLoaderDataGraph::classes_do(&closure);
   log_trace(redefine, class, load)("%d classes affected", _affected_klasses->length());
 
