@@ -1159,6 +1159,12 @@ void ClassLoaderDataGraph::dictionary_classes_do(void f(InstanceKlass*)) {
   }
 }
 
+void ClassLoaderDataGraph::dictionary_classes_do(KlassClosure* klass_closure) {
+  FOR_ALL_DICTIONARY(cld) {
+    cld->dictionary()->classes_do(klass_closure);
+  }
+}
+
 // Only walks the classes defined in this class loader.
 void ClassLoaderDataGraph::dictionary_classes_do(void f(InstanceKlass*, TRAPS), TRAPS) {
   FOR_ALL_DICTIONARY(cld) {
