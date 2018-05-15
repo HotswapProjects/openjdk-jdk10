@@ -215,13 +215,17 @@ void ResolvedMethodTable::adjust_method_entries(bool * trace_name_printed) {
           continue;
         }
 
-        InstanceKlass* holder = old_method->method_holder();
+        InstanceKlass* holder = InstanceKlass::cast(old_method->method_holder()->newest_version());
         Method* new_method = holder->method_with_idnum(old_method->orig_method_idnum());
         assert(holder == new_method->method_holder(), "call after swapping redefined guts");
         assert(new_method != NULL, "method_with_idnum() should not be NULL");
         assert(old_method != new_method, "sanity check");
 
         java_lang_invoke_ResolvedMethodName::set_vmtarget(mem_name, new_method);
+        java_lang_invoke_ResolvedMethodName::set_vmholder_offset(mem_name, new_method);
+
+        holder->set_has_resolved_methods();
+        _the_table->basic_add(new_method, mem_name);
 
         ResourceMark rm;
         if (!(*trace_name_printed)) {

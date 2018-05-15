@@ -482,6 +482,12 @@ void VM_EnhancedRedefineClasses::doit() {
   // Deoptimize all compiled code that depends on this class (do only once, because it clears whole cache)
   flush_dependent_code(NULL, thread);
 
+  // JSR-292 support
+  if (_any_class_has_resolved_methods) {
+    bool trace_name_printed = false;
+    ResolvedMethodTable::adjust_method_entries(&trace_name_printed);
+  }
+
   ChangePointersOopClosure<StoreNoBarrier> oopClosureNoBarrier;
   ChangePointersOopClosure<StoreBarrier> oopClosure;
   ChangePointersObjectClosure objectClosure(&oopClosure);
@@ -574,12 +580,6 @@ void VM_EnhancedRedefineClasses::doit() {
   // FIXME - check if it was in JDK8. Copied from standard JDK9 hotswap.
   //MethodDataCleaner clean_weak_method_links;
   //ClassLoaderDataGraph::classes_do(&clean_weak_method_links);
-
-  // JSR-292 support
-  if (_any_class_has_resolved_methods) {
-    bool trace_name_printed = false;
-    ResolvedMethodTable::adjust_method_entries(&trace_name_printed);
-  }
 
   // Disable any dependent concurrent compilations
   SystemDictionary::notice_modification();
@@ -1299,7 +1299,7 @@ void VM_EnhancedRedefineClasses::calculate_instance_update_information(Klass* ne
 */
 void VM_EnhancedRedefineClasses::rollback() {
   log_info(redefine, class, load)("Rolling back redefinition, result=%d", _res);
-  SystemDictionary::rollback_redefinition();
+  ClassLoaderDataGraph::rollback_redefinition();
 
   for (int i = 0; i < _new_classes->length(); i++) {
     SystemDictionary::remove_from_hierarchy(_new_classes->at(i));

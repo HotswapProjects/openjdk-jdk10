@@ -1904,12 +1904,6 @@ void SystemDictionary::update_constraints_after_redefinition() {
   constraints()->update_after_redefinition();
 }
 
-void SystemDictionary::rollback_redefinition() {
-    ClassLoaderData::the_null_class_loader_data()->dictionary()->rollback_redefinition();
-    // FIXME: review - rollback in non-system class loaders? void ClassLoaderDataGraph::cld_do(&rollback)
-    // ClassLoaderDataGraph::cld_do(&rollback);
-}
-
 // ----------------------------------------------------------------------------
 // GC support
 

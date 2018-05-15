@@ -432,9 +432,6 @@ public:
     initialize_wk_klasses_until((WKID) limit, start_id, THREAD);
   }
 
-  // Enhanced class redefinition
-  static void rollback_redefinition();
-
 public:
   #define WK_KLASS_DECLARE(name, symbol, option) \
     static InstanceKlass* name() { return check_klass_##option(_well_known_klasses[WK_KLASS_ENUM_NAME(name)]); } \

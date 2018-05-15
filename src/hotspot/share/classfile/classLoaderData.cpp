@@ -1172,6 +1172,12 @@ void ClassLoaderDataGraph::dictionary_classes_do(void f(InstanceKlass*, TRAPS), 
   }
 }
 
+void ClassLoaderDataGraph::rollback_redefinition() {
+  FOR_ALL_DICTIONARY(cld) {
+    cld->dictionary()->rollback_redefinition();
+  }
+}
+
 // Walks all entries in the dictionary including entries initiated by this class loader.
 void ClassLoaderDataGraph::dictionary_all_entries_do(void f(InstanceKlass*, ClassLoaderData*)) {
   FOR_ALL_DICTIONARY(cld) {

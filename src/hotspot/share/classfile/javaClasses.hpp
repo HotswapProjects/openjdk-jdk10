@@ -1073,6 +1073,7 @@ class java_lang_invoke_ResolvedMethodName : AllStatic {
 
   static Method* vmtarget(oop resolved_method);
   static void set_vmtarget(oop resolved_method, Method* method);
+  static void set_vmholder_offset(oop resolved_method, Method* method);
 
   // find or create resolved member name
   static oop find_resolved_method(const methodHandle& m, TRAPS);

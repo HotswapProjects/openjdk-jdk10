@@ -3320,6 +3320,11 @@ void java_lang_invoke_ResolvedMethodName::set_vmtarget(oop resolved_method, Meth
   resolved_method->address_field_put(_vmtarget_offset, (address)m);
 }
 
+void java_lang_invoke_ResolvedMethodName::set_vmholder_offset(oop resolved_method, Method* m) {
+  assert(is_instance(resolved_method), "wrong type");
+  resolved_method->obj_field_put(_vmholder_offset, m->method_holder()->java_mirror());
+}
+
 oop java_lang_invoke_ResolvedMethodName::find_resolved_method(const methodHandle& m, TRAPS) {
   // lookup ResolvedMethod oop in the table, or create a new one and intern it
   oop resolved_method = ResolvedMethodTable::find_method(m());

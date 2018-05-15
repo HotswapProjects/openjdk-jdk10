@@ -315,6 +315,7 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info, bool rei
   // This is done eagerly, since it is readily available without
   // constructing any new objects.
   /* // FIXME: useless from dcevm10
+  /*
   if (reinit) {
     return mname_oop;
   }
