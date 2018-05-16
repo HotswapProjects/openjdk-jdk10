@@ -1559,6 +1559,7 @@ void VM_EnhancedRedefineClasses::check_methods_and_mark_as_obsolete() {
 
     old_method->set_is_old();
     old_method->set_is_obsolete();
+    // FIXME: this flag was added in dcevm10 since it is required in resolvedMethodTable.cpp
     old_method->set_is_deleted();
   }
 }
