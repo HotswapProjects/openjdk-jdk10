@@ -259,7 +259,7 @@ class ChangePointersOopClosure : public ExtendedOopClosure {
           Thread *thread = Thread::current();
           CallInfo info(new_method, newest, thread);
           Handle objHandle(thread, obj);  // TODO : review thread
-          MethodHandles::init_method_MemberName(objHandle, info, true);
+          MethodHandles::init_method_MemberName(objHandle, info);
         } else {
           java_lang_invoke_MemberName::set_method(obj, NULL);
         }
@@ -1559,6 +1559,7 @@ void VM_EnhancedRedefineClasses::check_methods_and_mark_as_obsolete() {
 
     old_method->set_is_old();
     old_method->set_is_obsolete();
+    old_method->set_is_deleted();
   }
 }
 
