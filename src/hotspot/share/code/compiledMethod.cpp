@@ -50,6 +50,7 @@ void CompiledMethod::init_defaults() {
   _lazy_critical_native       = 0;
   _has_wide_vectors           = 0;
   _unloading_clock            = 0;
+  _deoptimization_incl        = false;
 }
 
 bool CompiledMethod::is_method_handle_return(address return_pc) {

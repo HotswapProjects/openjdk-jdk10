@@ -143,6 +143,8 @@ protected:
 
   MarkForDeoptimizationStatus _mark_for_deoptimization_status; // Used for stack deoptimization
 
+  bool _deoptimization_incl;
+
   bool _is_far_code; // Code is far from CodeCache.
                      // Have to use far call instructions to call it from code in CodeCache.
   // set during construction
@@ -229,6 +231,12 @@ public:
   void  mark_for_deoptimization(bool inc_recompile_counts = true) {
     _mark_for_deoptimization_status = (inc_recompile_counts ? deoptimize : deoptimize_noupdate);
   }
+
+  bool  is_deoptimization_incl() const            { return _deoptimization_incl; }
+  void  set_deoptimization_incl(bool z)           { _deoptimization_incl = z; }
+
+  void  mark_for_deoptimization_incl()            { if (_deoptimization_incl) _mark_for_deoptimization_status = deoptimize; }
+
   bool update_recompile_counts() const {
     // Update recompile counts when either the update is explicitly requested (deoptimize)
     // or the nmethod is not marked for deoptimization at all (not_marked).

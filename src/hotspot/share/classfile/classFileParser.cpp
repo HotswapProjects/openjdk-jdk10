@@ -5481,6 +5481,29 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
 
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);
 
+  if (ik->external_name() != NULL && HotswapDeoptClassPath != NULL) {
+    const char* deopt_path = HotswapDeoptClassPath;
+    const char* const end = deopt_path + strlen(deopt_path);
+    bool deopt_found = false;
+    while (!deopt_found && deopt_path < end) {
+      const char* tmp_end = strchr(deopt_path, ',');
+      if (tmp_end == NULL) {
+        tmp_end = end;
+      }
+      char* deopt_segm_path = NEW_C_HEAP_ARRAY(char, tmp_end - deopt_path + 1, mtInternal);
+      memcpy(deopt_segm_path, deopt_path, tmp_end - deopt_path);
+      deopt_segm_path[tmp_end - deopt_path] = '\0';
+      if (strstr(ik->external_name(), deopt_segm_path) != NULL) {
+        log_trace(redefine, class, normalize)
+            ("Including in deoptimization : %s", ik->external_name());
+        ik->set_deoptimization_incl(true);
+        deopt_found = true;
+      }
+      FREE_C_HEAP_ARRAY(char, deopt_segm_path);
+      deopt_path = tmp_end + 1;
+    }
+  }
+
   if (!is_internal()) {
     if (log_is_enabled(Info, class, load)) {
       ResourceMark rm;

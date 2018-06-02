@@ -1,8 +1,0 @@
-@@ -348,6 +351,7 @@
-   // Iterate over all klasses in dictionary
-   //   Just the classes from defining class loaders
-   static void classes_do(void f(Klass*));
-+  static void classes_do(KlassClosure* closure);
-   // Added for initialize_itable_for_klass to handle exceptions
-   static void classes_do(void f(Klass*, TRAPS), TRAPS);
-   //   All classes, and their class loaders

@@ -579,6 +579,8 @@ nmethod::nmethod(
     _exception_cache         = NULL;
     _pc_desc_container.reset_to(NULL);
     _hotness_counter         = NMethodSweeper::hotness_counter_reset_val();
+    if (method != NULL)
+      set_deoptimization_incl(method->method_holder()->is_deoptimization_incl());
 
     _scopes_data_begin = (address) this + scopes_data_offset;
     _deopt_handler_begin = (address) this + deoptimize_offset;
@@ -666,6 +668,8 @@ nmethod::nmethod(
     _comp_level              = comp_level;
     _orig_pc_offset          = orig_pc_offset;
     _hotness_counter         = NMethodSweeper::hotness_counter_reset_val();
+    if (method != NULL)
+      set_deoptimization_incl(method->method_holder()->is_deoptimization_incl());
 
     // Section offsets
     _consts_offset           = content_offset()      + code_buffer->total_offset_of(code_buffer->consts());

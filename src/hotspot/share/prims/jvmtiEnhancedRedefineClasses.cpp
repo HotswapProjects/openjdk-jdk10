@@ -797,6 +797,8 @@ jvmtiError VM_EnhancedRedefineClasses::load_new_class_versions(TRAPS) {
 
     new_class->set_redefinition_flags(redefinition_flags);
 
+    new_class->set_deoptimization_incl(true);
+
     _max_redefinition_flags = _max_redefinition_flags | redefinition_flags;
 
     if ((redefinition_flags & Klass::ModifyInstances) != 0) {
@@ -1722,7 +1724,10 @@ void VM_EnhancedRedefineClasses::flush_dependent_code(InstanceKlass* k_h, TRAPS)
   if (0 && JvmtiExport::all_dependencies_are_recorded()) {
     CodeCache::flush_evol_dependents_on(k_h);
   } else {
-    CodeCache::mark_all_nmethods_for_deoptimization();
+  	if (HotswapDeoptClassPath == NULL)
+  		CodeCache::mark_all_nmethods_for_deoptimization();
+  	else
+    	CodeCache::mark_all_incl_nmethods_for_deoptimization();
 
     ResourceMark rm(THREAD);
     DeoptimizationMarker dm;

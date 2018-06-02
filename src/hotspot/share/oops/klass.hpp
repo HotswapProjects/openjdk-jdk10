@@ -160,6 +160,7 @@ class Klass : public Metadata {
   bool        _is_redefining;
   int*        _update_information;
   bool        _is_copying_backwards;   // Does the class need to copy fields backwards? => possibly overwrite itself?
+  bool        _deoptimization_incl; // True if class methods are included in deoptimization
 
 private:
   // This is an index into FileMapHeader::_classpath_entry_table[], to
@@ -263,6 +264,9 @@ protected:
   Klass* next_sibling() const          { return _next_sibling; }
   InstanceKlass* superklass() const;
   void append_to_sibling_list();           // add newly created receiver to superklass' subklass list
+  bool  is_deoptimization_incl() const                 { return _deoptimization_incl; }
+  void  set_deoptimization_incl(bool z)                { _deoptimization_incl = z; }
+
   void remove_from_sibling_list();         // enhanced class redefinition
 
   void set_next_link(Klass* k) { _next_link = k; }

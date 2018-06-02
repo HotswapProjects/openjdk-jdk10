@@ -1190,6 +1190,17 @@ int CodeCache::mark_for_evol_deoptimization(InstanceKlass* dependee) {
 }
 #endif // HOTSWAP
 
+// Deoptimize all methods having deopt-include flag
+void CodeCache::mark_all_incl_nmethods_for_deoptimization() {
+  MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+  CompiledMethodIterator iter;
+  while(iter.next_alive()) {
+    CompiledMethod* nm = iter.method();
+    if (!nm->method()->is_method_handle_intrinsic()) {
+      nm->mark_for_deoptimization_incl();
+    }
+  }
+}
 
 // Deoptimize all methods
 void CodeCache::mark_all_nmethods_for_deoptimization() {

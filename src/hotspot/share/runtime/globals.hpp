@@ -4097,6 +4097,14 @@ public:
              "Allow enhanced class redefinition beyond swapping method "    \
              "bodies")                                                      \
                                                                             \
+  product(ccstr, HotswapDeoptClassPath, NULL,                               \
+          "Comma separated list of packages containing classes that are "   \
+          "expected to be redefined. If com.sun.proxy is used by "          \
+          "application and proxied class is redefined, then this option "   \
+          "should contain 'com.sun.proxy'. If the option is not defined, "  \
+          "then all classes will be deoptimized on hotswap. Using this "    \
+          "option improves hotswap performance. ")                          \
+                                                                            \
   product(bool, DisableHotswapAgent, false,                                 \
              "Disable integrated Hotswap Agent (HotswapVM only)")
 

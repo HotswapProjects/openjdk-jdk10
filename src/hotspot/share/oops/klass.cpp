@@ -188,6 +188,7 @@ Klass::Klass() : _prototype_header(markOopDesc::prototype()),
                  _is_redefining(false),
                  _is_copying_backwards(false),
                  _redefinition_flags(Klass::NoRedefinition),
+                 _deoptimization_incl(false),
                  _update_information(NULL) {
 
   _primary_supers[0] = this;
@@ -227,6 +228,8 @@ void Klass::initialize_supers(Klass* k, TRAPS) {
   if (FastSuperclassLimit == 0) {
     // None of the other machinery matters.
     set_super(k);
+    if (k != NULL && k->is_deoptimization_incl())
+      set_deoptimization_incl(true);
     return;
   }
   if (k == NULL) {
@@ -238,6 +241,8 @@ void Klass::initialize_supers(Klass* k, TRAPS) {
            "initialize this only once to a non-trivial value");
     set_super(k);
     Klass* sup = k;
+    if (sup->is_deoptimization_incl())
+      set_deoptimization_incl(true);
     int sup_depth = sup->super_depth();
     juint my_depth  = MIN2(sup_depth + 1, (int)primary_super_limit());
     if (!can_be_primary_super_slow())
